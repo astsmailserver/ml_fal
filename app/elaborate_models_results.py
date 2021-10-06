@@ -3,6 +3,7 @@ from attrdict import AttrDict
 import json
 from datetime import datetime
 from sqlalchemy import create_engine
+from pathlib import Path
 
 # Colonne finali della tabella issues
 # ID_ISSUE, fkID_ALARM, ID_REPOSITORY, ID_DATALOGGER, SIGLA_COMPLESSO, MATRICOLA_TRENO, VER_SW_OBU_ERTMS, 
@@ -44,6 +45,9 @@ def elaborate_train_results(df_allarmi, alarms_input_list):
     df.drop(columns=['DESCRIZIONE_ALLARME'], inplace=True)
     df_details['fkID_ALARM'] = df_details['DESCRIZIONE_ALLARME']
     df_details.drop(columns=['DESCRIZIONE_ALLARME'], inplace=True)
+    if len(df) > 0:
+        temp_df_path = './temp.csv'
+        df.to_csv(temp_df_path, index=False)
     return df, df_details, df_linking_runs
 
 def elaborate_pi_results(df_allarmi, alarms_input_list):
@@ -60,6 +64,8 @@ def elaborate_pi_results(df_allarmi, alarms_input_list):
     df, df_details = reset_alarms_id(df, df_details, 'pi')
     df.rename(columns={'ALARM_ID':'fkID_ALARM','NID_PI':'MATRICOLA_TRENO'}, inplace=True)
     df.drop(columns=['NID_MACROAREA', 'NID_AREA'], inplace=True)
+    df['MATRICOLA_TRENO'] = df.MATRICOLA_TRENO.astype('string')
+    df_details['MATRICOLA_TRENO'] = df_details.MATRICOLA_TRENO.astype('string')
     df, df_details = check_if_already_open(df, df_details)
     df, df_linking_runs =  build_df_linking_runs(df, df_details, 'pi')
     df['fkID_ALARM'] = df['DESCRIZIONE_ALLARME']
@@ -94,7 +100,7 @@ def get_run_config_values(idrun):
                     env.default_run_summary_values.fkversione_ssb_ertms,
                     env.default_scmt_config_values.sigla_complesso)
         else:
-            df_scmt_config = pd.read_sql(f"select fkversione_ssb_scmt, sigla_complesso from {env.db.tabella_scmt_config} where fkid_scmt_config='{df_run_summary.fkID_SCMT_CONFIG.loc[0]}'")
+            df_scmt_config = pd.read_sql(f"select fkversione_ssb_scmt, sigla_complesso from {env.db.tabella_scmt_config} where fkid_scmt_config='{df_run_summary.fkid_scmt_config.loc[0]}'", dbConnection)
             if len(df_scmt_config) == 0:
                 return (df_run_summary.loc[0, 'id_repository'],
                         df_run_summary.loc[0, 'id_datalogger'],
@@ -115,10 +121,16 @@ def check_if_already_open(df, df_details):
         if len(df_issue) == 0:
             max_id = 0
         else:
-            max_id = int(df_issue.id_issue.max())
+            max_id = int(df_issue.id_issue.max()) + 1
     df[['ALREADY_EXIST', 'ID_ISSUE']] = df.apply(lambda r: already_open(r.MATRICOLA_TRENO, df_issue), axis=1, result_type='expand')
+    temp_train_df_path = './temp.csv'
+    if Path(temp_train_df_path).is_file():    
+        temp_train_df = pd.read_csv(temp_train_df_path)
+        temp_train_df_file_path = Path(temp_train_df_path)
+        max_id = temp_train_df.ID_ISSUE.max() + 1
+        temp_train_df_file_path.unlink()
     new_ids = len(df.loc[df.ALREADY_EXIST == False])
-    df.loc[df.ALREADY_EXIST == False, 'ID_ISSUE'] = [e for e in range(max_id + 1, max_id + 1 + new_ids)]
+    df.loc[df.ALREADY_EXIST == False, 'ID_ISSUE'] = [e for e in range(max_id, max_id + new_ids)]
     df_details['ID_ISSUE'] = pd.merge(df[['MATRICOLA_TRENO', 'fkID_ALARM', 'ID_ISSUE']], df_details[['MATRICOLA_TRENO', 'fkID_ALARM']], \
             on=['MATRICOLA_TRENO', 'fkID_ALARM']).ID_ISSUE
     return df, df_details
@@ -154,17 +166,27 @@ def build_details_pi(r):
 
 
 def reset_alarms_id(df, df_details, type):
-    df['NEW_ID'] = [i for i in range(len(df))]
     if type == 'train':
-        temp_df = pd.merge(df_details, df[['MATRICOLA_TRENO', 'fkID_ALARM', 'NEW_ID', 'DESCRIZIONE_ALLARME']], on=['MATRICOLA_TRENO', 'fkID_ALARM'])
+        new_df = df.groupby(by=['MATRICOLA_TRENO']).first()
+        new_df.reset_index(inplace=True)
+        new_df['NEW_ID'] = [i for i in range(len(new_df))]
+        temp_df = pd.merge(df_details, new_df[['MATRICOLA_TRENO', 'NEW_ID', 'DESCRIZIONE_ALLARME']], on=['MATRICOLA_TRENO'])
+        new_df['MATRICOLA_TRENO'] = new_df.MATRICOLA_TRENO.astype('string')
+        temp_df['MATRICOLA_TRENO'] = temp_df.MATRICOLA_TRENO.astype('string')
     else:
-        temp_df = pd.merge(df_details, df[['NID_PI', 'NID_MACROAREA', 'NID_AREA', 'fkID_ALARM', 'NEW_ID', 'DESCRIZIONE_ALLARME']], \
-            on=['NID_PI', 'NID_MACROAREA', 'NID_AREA', 'fkID_ALARM'])
-    df['fkID_ALARM'] = df.NEW_ID
+        new_df = df.groupby(by=['NID_PI', 'NID_MACROAREA', 'NID_AREA']).first()
+        new_df.reset_index(inplace=True)
+        new_df['NEW_ID'] = [i for i in range(len(new_df))]
+        temp_df = pd.merge(df_details, new_df[['NID_PI', 'NID_MACROAREA', 'NID_AREA', 'NEW_ID', 'DESCRIZIONE_ALLARME']], \
+            on=['NID_PI', 'NID_MACROAREA', 'NID_AREA'])
+    new_df['fkID_ALARM'] = new_df.NEW_ID
     temp_df['fkID_ALARM'] = temp_df.NEW_ID
     temp_df.drop(columns=['NEW_ID'], inplace=True)
-    df.drop(columns=['NEW_ID'], inplace=True) 
-    return df, temp_df
+    new_df.drop(columns=['NEW_ID'], inplace=True) 
+    new_df['fkID_ALARM'] = new_df.fkID_ALARM.astype('int')
+    temp_df['fkID_ALARM'] = temp_df.fkID_ALARM.astype('int')
+
+    return new_df, temp_df
 
 
 def build_df_linking_runs(df, df_details, type):
