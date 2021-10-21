@@ -195,8 +195,9 @@ def build_df_linking_runs(df, df_details, type):
             df[['MATRICOLA_TRENO', 'fkID_ALARM', 'ID_ISSUE']], on=['MATRICOLA_TRENO', 'fkID_ALARM']).groupby(by=['fkID_ALARM']).first()
         out_df.drop(columns=['MATRICOLA_TRENO'], inplace=True)
     else :
+        df_details['NID_PI'] = df_details.NID_PI.astype('string')
         out_df = pd.merge(df_details[['NID_PI', 'fkID_ALARM', 'ID_RUN', 'DISTANZA', 'VELOCITA', 'TIMESTAMP']],\
-        df[['MATRICOLA_TRENO', 'fkID_ALARM', 'ID_ISSUE']], left_on=['NID_PI', 'fkID_ALARM'], right_on=['MATRICOLA_TRENO', 'fkID_ALARM'])
+                df[['MATRICOLA_TRENO', 'fkID_ALARM', 'ID_ISSUE']], left_on=['NID_PI', 'fkID_ALARM'], right_on=['MATRICOLA_TRENO', 'fkID_ALARM'])
         out_df.drop(columns=['NID_PI','MATRICOLA_TRENO', 'fkID_ALARM'], inplace=True)
     for col in env.default_issues_linking_table_values.keys():
         if env.default_issues_linking_table_values[col] != 'CURRENT_TIMESTAMP':

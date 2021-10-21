@@ -138,6 +138,8 @@ def clean_data_for_train_analisys(df_captazioni, df_errori, train_list):
 def clean_data_for_pi_analisys(df_captazioni, df_errori):
     df = pd.concat([df_captazioni, df_errori])
     df = set_correct_pi_info_error_51(df, 'punto_informativo')
+    utils.log(module_log_file, f'Numero di linee con NID_PI pari a 0 rimosse: {len(df[df.NID_PI == 0])}')
+    df.drop(df[df.NID_PI == 0].index, inplace=True)
     return df
 
 
