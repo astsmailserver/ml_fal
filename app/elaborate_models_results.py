@@ -123,6 +123,7 @@ def check_if_already_open(df, df_details):
         else:
             max_id = int(df_issue.id_issue.max()) + 1
     df[['ALREADY_EXIST', 'ID_ISSUE']] = df.apply(lambda r: already_open(r.MATRICOLA_TRENO, df_issue), axis=1, result_type='expand')
+    df['ID_ISSUE'] = df.ID_ISSUE.astype('int')
     temp_train_df_path = './temp.csv'
     if Path(temp_train_df_path).is_file():    
         temp_train_df = pd.read_csv(temp_train_df_path)
@@ -131,8 +132,10 @@ def check_if_already_open(df, df_details):
         temp_train_df_file_path.unlink()
     new_ids = len(df.loc[df.ALREADY_EXIST == False])
     df.loc[df.ALREADY_EXIST == False, 'ID_ISSUE'] = [e for e in range(max_id, max_id + new_ids)]
-    df_details['ID_ISSUE'] = pd.merge(df[['MATRICOLA_TRENO', 'fkID_ALARM', 'ID_ISSUE']], df_details[['MATRICOLA_TRENO', 'fkID_ALARM']], \
-            on=['MATRICOLA_TRENO', 'fkID_ALARM']).ID_ISSUE
+    df_details['NID_PI'] = df_details.NID_PI.astype('string')
+    df_details['ID_ISSUE'] = pd.merge(df[['MATRICOLA_TRENO', 'fkID_ALARM', 'ID_ISSUE']], df_details[['NID_PI', 'fkID_ALARM']], \
+            left_on=['MATRICOLA_TRENO', 'fkID_ALARM'], right_on=['NID_PI', 'fkID_ALARM']).ID_ISSUE
+    df_details['NID_PI']  = df_details.NID_PI.astype('int')
     return df, df_details
 
 
@@ -185,7 +188,6 @@ def reset_alarms_id(df, df_details, type):
     new_df.drop(columns=['NEW_ID'], inplace=True) 
     new_df['fkID_ALARM'] = new_df.fkID_ALARM.astype('int')
     temp_df['fkID_ALARM'] = temp_df.fkID_ALARM.astype('int')
-
     return new_df, temp_df
 
 
