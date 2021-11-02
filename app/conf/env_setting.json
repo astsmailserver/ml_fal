@@ -82,9 +82,9 @@
     "upper_limit" : 0.375,
     "bins_number" : {
         "train" : 25,
-        "pi" : 15,
-        "default_zone": "GLOBALE"
+        "pi" : 15
     },
     "history_lenght" : 3,
-    "series_slice_dimension" : 15
+    "series_slice_dimension" : 15,
+    "default_zone": "GLOBALE"
 }
