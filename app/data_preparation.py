@@ -212,6 +212,7 @@ def generate_train_df_list(df_treni, last_checkpoint, upper_limit):
 
 def get_train_zone_value_param_list(df_treni, train_list):
     df_zone = pd.read_csv('./conf/Zone_competenza.csv', sep=';')
+    df_zone = check_new_train(train_list, df_zone)
     # lista di tuple (air_min, air_mean, air_max, cabina, frequenza, zona)
     zone_value_list = [t for l in [[(df_copy.loc[(df_copy.CAB == cabina)&(df_copy.FREQUENZA == frequenza), "AIRGAP_INDEX"].min(),\
                             df_copy.loc[(df_copy.CAB == cabina)&(df_copy.FREQUENZA == frequenza), "AIRGAP_INDEX"].mean(),\
@@ -237,3 +238,13 @@ def generate_pi_df_list(df_boe, last_checkpoint, upper_limit):
     min_airgap = df_boe.AIRGAP_INDEX.min()
     mean_airgap = df_boe.loc[df_boe.AIRGAP_INDEX != 65535, "AIRGAP_INDEX"].mean()
     return [(df, max_airgap, min_airgap, mean_airgap, last_checkpoint, upper_limit) for ((macroarea, area, pi), df) in df_boe_list if not df.empty]
+
+
+def check_new_train(train_list, df_zone):
+    missing_train = [t for t in train_list if t not in list(df_zone.MATRICOLA_TRENO.unique())]
+    df_zone = df_zone.append([{'MATRICOLA_TRENO':t,'ZONA_COMPETENZA':env.default_zone} for t in missing_train])
+    df_zone.to_csv('./conf/Zone_competenza.csv',sep=';', index=False)
+    with open('test.txt','w') as f:
+        f.writelines(missing_train)
+    df_zone.to_csv('test.csv',sep=';')
+    return df_zone
