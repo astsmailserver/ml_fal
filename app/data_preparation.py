@@ -24,11 +24,11 @@ def get_clean_data(last_checkpoint, upper_limit, log_file):
     global module_log_file
     module_log_file = log_file
     utils.log(module_log_file, f'Inizio ottenimento e preparazione dei dati...')
-    df_treni, df_boe = load_data_from_database(last_checkpoint)
+    new_checkpoint, df_treni, df_boe = load_data_from_database(last_checkpoint)
     if (df_treni.empty)&(df_boe.empty):
-        return [(df_treni,0,0,0)], [(df_boe,0,0,0)]
+        return new_checkpoint, [(df_treni,0,0,0)], [(df_boe,0,0,0)]
     else:
-        return generate_train_df_list(df_treni, last_checkpoint, upper_limit), generate_pi_df_list(df_boe, last_checkpoint, upper_limit)
+        return new_checkpoint, generate_train_df_list(df_treni, last_checkpoint, upper_limit), generate_pi_df_list(df_boe, last_checkpoint, upper_limit)
 
 
 def load_data_from_database(last_checkpoint):
@@ -49,14 +49,14 @@ def load_data_from_database(last_checkpoint):
         utils.log(module_log_file, f'Righe lette da errori: {len(df_errori)}')
         df_errori = clean_errori(df_errori, df_captazioni)
         train_list = list(df_captazioni[df_captazioni.ID > last_checkpoint.captazioni].MATRICOLA_TRENO.unique())
-        with open('./conf/checkpoints.json', 'w') as fp:
-            json.dump(new_checkpoint, fp)
+
         if(last_checkpoint.captazioni == new_checkpoint.captazioni)&\
             (last_checkpoint.errori == new_checkpoint.errori):
-            return pd.DataFrame(), pd.DataFrame()
-        return clean_data_for_train_analisys(df_captazioni, df_errori, train_list), clean_data_for_pi_analisys(df_captazioni, df_errori)
+            return new_checkpoint, pd.DataFrame(), pd.DataFrame()
+        return new_checkpoint, clean_data_for_train_analisys(df_captazioni, df_errori, train_list), clean_data_for_pi_analisys(df_captazioni, df_errori)
     else :
-        return df_captazioni, df_captazioni
+        return new_checkpoint, df_captazioni, df_captazioni
+
 
 
 def clean_captazioni(df):
@@ -95,8 +95,10 @@ def clean_errori(df, df_c):
 
 
 def clean_data_for_train_analisys(df_captazioni, df_errori, train_list):
-    df_captazioni = df_captazioni[df_captazioni.MATRICOLA_TRENO.isin(train_list)]
-    df_errori = df_errori[df_errori.MATRICOLA_TRENO.isin(train_list)]
+
+    df_captazioni = df_captazioni[df_captazioni.MATRICOLA_TRENO.isin(train_list)].copy(deep=True)
+    df_errori = df_errori[df_errori.MATRICOLA_TRENO.isin(train_list)].copy(deep=True)
+
     # Rimuovo gli errori 59 che creerebbero problemi nella costruzione delle corse
     init_lenght = len(df_captazioni)
     df_captazioni.drop(df_captazioni[(df_captazioni.ERRORE == '59')].index, inplace=True)
@@ -244,7 +246,4 @@ def check_new_train(train_list, df_zone):
     missing_train = [t for t in train_list if t not in list(df_zone.MATRICOLA_TRENO.unique())]
     df_zone = df_zone.append([{'MATRICOLA_TRENO':t,'ZONA_COMPETENZA':env.default_zone} for t in missing_train])
     df_zone.to_csv('./conf/Zone_competenza.csv',sep=';', index=False)
-    with open('test.txt','w') as f:
-        f.writelines(missing_train)
-    df_zone.to_csv('test.csv',sep=';')
     return df_zone
