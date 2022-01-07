@@ -48,7 +48,7 @@ if __name__ == "__main__":
     # La data preparation torna 2 liste:
     # 1. [per ogni treno una tupla (df_treno, zone_param_dict, last_checkpoints, upper_limit)]
     # 2. [per ogni pi una tupla (df_pi, max_airgap, min_airgap, mean_airgap, last_last_checkpoints, upper_limit)]
-    df_treni_info_list, df_boe_info_list = data_preparation.get_clean_data(last_checkpoints, upper_limit, log_file_path)
+    new_checkpoint, df_treni_info_list, df_boe_info_list = data_preparation.get_clean_data(last_checkpoints, upper_limit, log_file_path)
     if (df_treni_info_list[0][0].empty)&(df_boe_info_list[0][0].empty):
         utils.log(log_file_path, "Non ci sono nuove captazioni da analizzare. Programma interrotto")
         utils.log(log_file_path, f'Analisi completata con orario: {datetime.now()}')
@@ -71,12 +71,12 @@ if __name__ == "__main__":
     train_results, train_results_details, train_linking_runs = elaborate_models_results.elaborate_train_results(train_alarms_df, train_alarms_input_df_list)
     pi_results, pi_results_details, pi_linking_runs = elaborate_models_results.elaborate_pi_results(pi_alarms_df, pi_alarms_input_df_list)
     # Salvataggio dei risultati su DB e FTP
-    if (train_results.empty)&(pi_results.empty):
+    if (train_linking_runs.empty)&(pi_linking_runs.empty):
         utils.log(log_file_path, f"L'analisi non ha prodotto alcun allarme da aggiungere.")
-    elif (train_results.empty)&(not pi_results.empty):
+    elif (train_linking_runs.empty) & (not pi_linking_runs.empty):
         save_models_results.save_results(pi_results, pi_results_details, pi_linking_runs,
                                         f'RUN_{datetime.now().strftime("%Y%d%m%H%M%S")}')
-    elif (not train_results.empty)&(pi_results.empty):
+    elif (not train_linking_runs.empty) & (pi_linking_runs.empty):
         save_models_results.save_results(train_results, train_results_details, train_linking_runs,
                                         f'RUN_{datetime.now().strftime("%Y%d%m%H%M%S")}')
     else:
@@ -84,4 +84,6 @@ if __name__ == "__main__":
                                         pd.concat([train_results_details, pi_results_details]),
                                         pd.concat([train_linking_runs, pi_linking_runs]),
                                         f'RUN_{datetime.now().strftime("%Y%d%m%H%M%S")}')
+    with open('./conf/checkpoints.json', 'w') as fp:
+        json.dump(new_checkpoint, fp)
     utils.log(log_file_path, f'Analisi completata con orario: {datetime.now()}')

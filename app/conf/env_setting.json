@@ -4,9 +4,9 @@
         "details_directory" : "../Dettagli/"
     },
     "alarms_types" : {
-        "train_alarms_desc" : "ML-canale",
-        "single_pi_alarms_desc" : "ML-pi_non_parallelo",
-        "multiple_pi_alarms_desc": "ML-pi_parallelo"
+        "train_alarms_desc" : "ID_TRAIN_ALARM_ML",
+        "single_pi_alarms_desc" : "ID_PI_ALARM_ML",
+        "multiple_pi_alarms_desc": "ID_PARALLEL_PI_ALARM_ML"
     },
     "db" : {
         "server_name" : "10.58.2.4",
@@ -85,5 +85,6 @@
         "pi" : 15
     },
     "history_lenght" : 3,
-    "series_slice_dimension" : 15
+    "series_slice_dimension" : 15,
+    "default_zone": "GLOBALE"
 }
