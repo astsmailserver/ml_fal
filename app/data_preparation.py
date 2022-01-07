@@ -49,12 +49,14 @@ def load_data_from_database(last_checkpoint):
         utils.log(module_log_file, f'Righe lette da errori: {len(df_errori)}')
         df_errori = clean_errori(df_errori, df_captazioni)
         train_list = list(df_captazioni[df_captazioni.ID > last_checkpoint.captazioni].MATRICOLA_TRENO.unique())
+
         if(last_checkpoint.captazioni == new_checkpoint.captazioni)&\
             (last_checkpoint.errori == new_checkpoint.errori):
             return new_checkpoint, pd.DataFrame(), pd.DataFrame()
         return new_checkpoint, clean_data_for_train_analisys(df_captazioni, df_errori, train_list), clean_data_for_pi_analisys(df_captazioni, df_errori)
     else :
         return new_checkpoint, df_captazioni, df_captazioni
+
 
 
 def clean_captazioni(df):
@@ -93,8 +95,10 @@ def clean_errori(df, df_c):
 
 
 def clean_data_for_train_analisys(df_captazioni, df_errori, train_list):
+
     df_captazioni = df_captazioni[df_captazioni.MATRICOLA_TRENO.isin(train_list)].copy(deep=True)
     df_errori = df_errori[df_errori.MATRICOLA_TRENO.isin(train_list)].copy(deep=True)
+
     # Rimuovo gli errori 59 che creerebbero problemi nella costruzione delle corse
     init_lenght = len(df_captazioni)
     df_captazioni.drop(df_captazioni[(df_captazioni.ERRORE == '59')].index, inplace=True)

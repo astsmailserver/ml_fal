@@ -18,8 +18,10 @@ from pathlib import Path
 # fkID_ALARM, ID_REPOSITORY, ID_DATALOGGER, SIGLA_COMPLESSO, MATRICOLA_TRENO, VER_SW_OBU_ERTMS, 
 # VER_SW_OBU_SCMT, DETAILS
 
+
 # DETAILS Può contenere tutte le info aggiuntive che ci pare basta modificare le due funzioni per la costruzione 
 # della colonna build_details o build_details_pi a seconda di quali informazioni vanno aggiunte
+
 
 #Colonne finali della tabella table_issues_linking_runs_summary
 # ID, CATEGORY, TS_AT, DISTANCE_AT, SPEED_AT, fkID_ISSUE, fkID_RUN
@@ -40,7 +42,9 @@ def elaborate_train_results(df_allarmi, alarms_input_list):
     df.rename(columns={'ALARM_ID':'fkID_ALARM'},inplace=True)
     df_details.rename(columns={'ALARM_ID':'fkID_ALARM'},inplace=True)
     df, df_details = reset_alarms_id(df, df_details, 'train')
+
     df, df_details = check_if_already_open(df, df_details, 'train')
+
     df, df_linking_runs =  build_df_linking_runs(df, df_details, 'train')
     df['fkID_ALARM'] = df['DESCRIZIONE_ALLARME']
     df.drop(columns=['DESCRIZIONE_ALLARME'], inplace=True)
@@ -67,7 +71,9 @@ def elaborate_pi_results(df_allarmi, alarms_input_list):
     df.drop(columns=['NID_MACROAREA', 'NID_AREA'], inplace=True)
     df['MATRICOLA_TRENO'] = df.MATRICOLA_TRENO.astype('string')
     df_details['MATRICOLA_TRENO'] = df_details.MATRICOLA_TRENO.astype('string')
+
     df, df_details = check_if_already_open(df, df_details, 'pi')
+
     df, df_linking_runs =  build_df_linking_runs(df, df_details, 'pi')
     df['fkID_ALARM'] = df['DESCRIZIONE_ALLARME']
     df.drop(columns=['DESCRIZIONE_ALLARME'], inplace=True)
@@ -116,6 +122,7 @@ def get_run_config_values(idrun):
                         df_scmt_config.loc[0, 'sigla_complesso'])
 
 
+
 def check_if_already_open(df, df_details, type):
     with engine.connect() as dbConnection:
         max_df = pd.read_sql(f"select max(id_issue) as max_id_issue from {env.db.tabella_issues}", dbConnection)
@@ -124,6 +131,7 @@ def check_if_already_open(df, df_details, type):
         else:
             max_id = 0
         df_issue = pd.read_sql(f"select id_issue, matricola_treno from {env.db.tabella_issues} where state != 'CLOSED'", dbConnection)
+
     df[['ALREADY_EXIST', 'ID_ISSUE']] = df.apply(lambda r: already_open(r.MATRICOLA_TRENO, df_issue), axis=1, result_type='expand')
     df['ID_ISSUE'] = df.ID_ISSUE.astype('int')
     temp_train_df_path = './temp.csv'
@@ -135,6 +143,7 @@ def check_if_already_open(df, df_details, type):
     new_ids = len(df.loc[df.ALREADY_EXIST == False])
     df.loc[df.ALREADY_EXIST == False, 'ID_ISSUE'] = [e for e in range(max_id, max_id + new_ids)]
     df_details['NID_PI'] = df_details.NID_PI.astype('string')
+
     if type == 'train':
         df_details['ID_ISSUE'] = pd.merge(df[['MATRICOLA_TRENO', 'fkID_ALARM', 'ID_ISSUE']], df_details[['MATRICOLA_TRENO', 'fkID_ALARM']], \
             on=['MATRICOLA_TRENO', 'fkID_ALARM']).ID_ISSUE
@@ -144,6 +153,7 @@ def check_if_already_open(df, df_details, type):
     df_details['NID_PI']  = df_details.NID_PI.astype('int')
     df['ID_ISSUE'] = df.ID_ISSUE.astype('int')
     df_details['ID_ISSUE'] = df_details.ID_ISSUE.astype('int')
+
     return df, df_details
 
 
@@ -157,7 +167,9 @@ def already_open(id, df_issue):
 def build_details(dataframe, type):
     df = dataframe.copy(deep=True)
     if type == 'train':    
+
         df['DETAILS'] = dataframe.apply(lambda r: f'CABINA: {r.CABINA} FREQUENZA: {r.FREQUENZA}', axis=1)
+
         df.drop(columns=['CABINA','FREQUENZA','PATH_DATI_INPUT_COINVOLTI','TMS_ALLARME'], inplace=True)
     else:
         df['DETAILS'] = dataframe.apply(lambda r: build_details_pi(r), axis=1)
@@ -171,9 +183,11 @@ def build_details_pi(r):
         df_catene.fillna('', inplace=True)
         id_text = f'{r.NID_MACROAREA}-{r.NID_AREA}-{r.NID_PI}'
         df_catene['POSSIBILI_SUCCESSIVI'] = df_catene.POSSIBILI_SUCCESSIVI.apply(lambda s: s.split(','))
+
         return f'NID_MACROAREA: {r.NID_MACROAREA} NID_AREA: {r.NID_AREA} PUNTI PARALLELI: {df_catene[df_catene.POSSIBILI_SUCCESSIVI.apply(lambda l: id_text in l)].POSSIBILI_SUCCESSIVI.to_list()[0]}'
     else:
         return f'NID_MACROAREA: {r.NID_MACROAREA} NID_AREA: {r.NID_AREA}'
+
 
 
 def reset_alarms_id(df, df_details, type):
@@ -217,6 +231,7 @@ def build_df_linking_runs(df, df_details, type):
     out_df['TIMESTAMP'] = out_df.TIMESTAMP.apply(lambda d: int(d.timestamp()))
     out_df.DISTANZA.fillna(0, inplace=True)
     out_df.rename(columns={'TIMESTAMP' : 'TS_AT', 'DISTANZA' : 'DISTANCE_AT', 'VELOCITA' : 'SPEED_AT', 'ID_ISSUE' : 'fkID_ISSUE', 'ID_RUN' : 'fkID_RUN'}, inplace=True)
+
     new_df = df[df.ALREADY_EXIST == False].copy(deep=True)
     new_df.drop(columns=['ALREADY_EXIST'], inplace=True)
     return new_df, out_df
