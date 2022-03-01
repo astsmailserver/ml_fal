@@ -45,10 +45,12 @@ if __name__ == "__main__":
     log_file_path = f'{log_path}log_{starting_time}'
     utils.log(log_file_path, f'Inizio processo di analisi: {starting_datetime}')
     utils.log(log_file_path, f'Parametri del processo:\n\tlast_checkpoints:{last_checkpoints}\n\tupper_limit:{upper_limit}')
+    #FIX: svuota le tabelle prima di cominciare a lavorare
+    tablefix = save_models_results.truncate_table_fix()
     # La data preparation torna 2 liste:
     # 1. [per ogni treno una tupla (df_treno, zone_param_dict, last_checkpoints, upper_limit)]
     # 2. [per ogni pi una tupla (df_pi, max_airgap, min_airgap, mean_airgap, last_last_checkpoints, upper_limit)]
-    new_checkpoint, df_treni_info_list, df_boe_info_list = data_preparation.get_clean_data(last_checkpoints, upper_limit, log_file_path)
+        new_checkpoint, df_treni_info_list, df_boe_info_list = data_preparation.get_clean_data(last_checkpoints, upper_limit, log_file_path)
     if (df_treni_info_list[0][0].empty)&(df_boe_info_list[0][0].empty):
         utils.log(log_file_path, "Non ci sono nuove captazioni da analizzare. Programma interrotto")
         utils.log(log_file_path, f'Analisi completata con orario: {datetime.now()}')
